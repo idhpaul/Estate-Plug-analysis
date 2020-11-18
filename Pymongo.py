@@ -11,8 +11,8 @@ print(my_client.list_database_names())
 
 
 
-#mydb = my_client['estate-plug'] 
-#mycol = mydb['apart_trade_kangnam_indecrease']
+mydb = my_client['estate-plug'] 
+mycol = mydb['apart_trade_monthly_price']
 
 #%%
 collection  = my_client.apart_trade_count
@@ -37,3 +37,5 @@ mycol.delete_one({
 #%%
 # All data remove
 mycol.remove({})
+
+# %%

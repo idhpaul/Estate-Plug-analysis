@@ -80,62 +80,6 @@ def Init_S3Client():
 * @return     DataFrame                         Return target month for the year DataFrame  
 *******************************************************************************
 """
-def Read_Trade(_s3Obj, _item, _year, _month):
-
-    hasData = False
-
-    s3FileName = _item + "_trade_" + _year + _month + ".csv"
-    print(s3FileName)
-
-    for key in _s3Obj.list_objects(Bucket='store-estate')['Contents']:
-        if s3FileName == key['Key']:
-            print("Item detected")
-            hasData = True
-            break;
-
-
-    if hasData == False:
-        print("No Item")
-        return pd.DataFrame()
-
-    csv_obj = _s3Obj.get_object(Bucket='store-estate', Key=s3FileName)
-    body = csv_obj['Body']
-    csv_string = body.read().decode('utf-8')
-
-    df = pd.read_csv(StringIO(csv_string))
-
-    # Drop Unnecessary Columns 
-    df = df.drop(df.columns[0], axis='columns')
-    
-    if (df['거래금액'].dtypes != object):
-        print("Don't need filtering")
-        df = df.astype('object')
-    else:
-        print("Need filtering")
-        filter = df['거래금액'] != '거래금액'
-        df = df[filter]
-
-    filteringdf = df.sort_index()
-
-    # 인덱스 번호 재시작
-    filteringdf.reset_index(drop=True, inplace=True)
-
-    return filteringdf
-
-"""
-*******************************************************************************
-* Read_Contract(_s3Obj, _item, _year, _month) 
-
-* @brief                                        Read Target item
-
-* @param [in] botostubs.S3  _s3Obj              S3 Client / Init_S3Client() 로드 필수
-* @param [in] string        _item               Target item type(Available value(string type) = apart, detached, land, multi_houing, officetel)
-* @param [in] string        _year               Target item year
-* @param [in] string        _month              Target item month
-
-* @return     DataFrame                         Return target month for the year DataFrame  
-*******************************************************************************
-"""
 def Read_Contract(_s3Obj, _item, _year, _month):
 
     hasData = False
@@ -162,13 +106,13 @@ def Read_Contract(_s3Obj, _item, _year, _month):
 
     # Drop Unnecessary Columns 
     df = df.drop(df.columns[0], axis='columns')
-    
-    if (df['거래금액'].dtypes != object):
+ 
+    if (df['보증금액'].dtypes != object):
         print("Don't need filtering")
         df = df.astype('object')
     else:
         print("Need filtering")
-        filter = df['거래금액'] != '거래금액'
+        filter = df['보증금액'] != '보증금액'
         df = df[filter]
 
     filteringdf = df.sort_index()
@@ -219,56 +163,15 @@ def do_ReadContractData(_item, _year, _startMonth, _endMonth):
 
     return ConcatData
 
-"""
-*******************************************************************************
-* do_ReadData(_item, _year, _startMonth, _endMonth)       
-
-* @brief                                        Read Target item
-
-* @param [in] string        _item               Target item type(Available value(string type) = apart, detached, land, multi_houing, officetel)
-* @param [in] int           _year               Target item year
-* @param [in] int           _startMonth         Target item start month
-* @param [in] int           _endMonth           Target item end month
-
-* @return     DataFrame                         Return target year merged data             
-*******************************************************************************
-"""
-def do_ReadTradeData(_item, _year, _startMonth, _endMonth):
-    S3Client = Init_S3Client()
-
-    ConcatData = pd.DataFrame()
-
-    for month in range(_startMonth, _endMonth+1):
-    
-        tempData = pd.DataFrame()
-
-        if month <= 0 | month > 13:
-            print("Out of range")
-
-        if month < 10:
-            tempData = Read_Trade(_s3Obj= S3Client, _item= _item, _year= str(_year),_month="0"+str(month))
-
-        else:
-            tempData = Read_Trade(_s3Obj= S3Client, _item= _item, _year= str(_year), _month=str(month))
-
-        # No Data in S3
-        if tempData.empty:
-            print("No Data in S3")
-            continue
-
-        ConcatData = pd.concat([ConcatData, tempData], axis=0, ignore_index=True)
-
-    return ConcatData
-
 
 """
 *******************************************************************************
-* calc_trade_yearly_increase(_item, _startYear, _endYear)       
+* calc_contract_yearly_increase(_item, _startYear, _endYear)       
 
 * @brief                                        연도 별 거래 증감량
 * @note
 *           Graph Type                          선형 그래프
-*           MongoDB Collection name :           $(item)_trade_yearly_increase
+*           MongoDB Collection name :           $(item)_contract_yearly_increase
 *           MongoDB Scehma                      
 *                                               {
                                                     year: '2020',              <- String
@@ -281,15 +184,15 @@ def do_ReadTradeData(_item, _year, _startMonth, _endMonth):
          
 *******************************************************************************
 """
-def calc_trade_yearly_increase(_item, _startYear, _endYear):
+def calc_contract_yearly_increase(_item, _startYear, _endYear):
 
     flag_first = True
     represent_value = 0
 
-    target_collection_name = _item + "_trade_yearly_increase"
+    target_collection_name = _item + "_contract_yearly_increase"
 
     for i in range(_startYear, _endYear+1):
-        tempdf = do_ReadTradeData(_item="apart", _year=i, _startMonth=1, _endMonth=12)
+        tempdf = do_ReadContractData(_item="apart", _year=i, _startMonth=1, _endMonth=12)
 
         if flag_first == True:
             represent_value = tempdf['월'].count()
@@ -327,7 +230,7 @@ def calc_trade_yearly_increase(_item, _startYear, _endYear):
        
 *******************************************************************************
 """
-def calc_trade_monthly_increase(_data, _item, _year, _startMonth, _endMonth):
+def calc_contract_monthly_increase(_data, _item, _year, _startMonth, _endMonth):
 
     flag_first = True
     represent_value = 0
@@ -335,7 +238,7 @@ def calc_trade_monthly_increase(_data, _item, _year, _startMonth, _endMonth):
     target_collection_name = _item + "_trade_monthly_increase"
 
     _data['월'] = pd.to_numeric(_data['월'])
-    _data['거래금액'] = pd.to_numeric(_data['거래금액'])
+    _data['보증금액'] = pd.to_numeric(_data['보증금액'])
     _data.dtypes
 
     for i in range(_startMonth, _endMonth+1):
@@ -383,12 +286,12 @@ def calc_trade_monthly_increase(_data, _item, _year, _startMonth, _endMonth):
 
 *******************************************************************************
 """
-def calc_trade_monthly_price(_data, _item, _year, _startMonth, _endMonth):
+def calc_contract_monthly_price(_data, _item, _year, _startMonth, _endMonth):
     
     target_collection_name = _item + "_trade_monthly_price"
 
     _data['월'] = pd.to_numeric(_data['월'])
-    _data['거래금액'] = pd.to_numeric(_data['거래금액'])
+    _data['보증금액'] = pd.to_numeric(_data['보증금액'])
     _data.dtypes
 
     for i in range(_startMonth, _endMonth+1):
@@ -398,7 +301,7 @@ def calc_trade_monthly_price(_data, _item, _year, _startMonth, _endMonth):
             target_month = "0"+str(i)
         else:
             target_month = str(i)
-        target_price = _data['거래금액'][_data['월']==i].sum()
+        target_price = _data['보증금액'][_data['월']==i].sum()
         print(target_year, target_month)
         print(int(target_price))
 
@@ -406,45 +309,45 @@ def calc_trade_monthly_price(_data, _item, _year, _startMonth, _endMonth):
         myCol = myDB[target_collection_name]
         x = myCol.insert_one({"year_month":target_year + target_month, "price":int(target_price)})
         print(x.inserted_id)
-
+    
 # %%
 # 연도 별 데이터 추합 (userspace)
-Officetel15 = do_ReadTradeData(_item="officetel", _year=2015, _startMonth=1, _endMonth=12)
-print(Officetel15)
+MultiHouse15 = do_ReadContractData(_item="multi_housing", _year=2015, _startMonth=1, _endMonth=12)
+print(MultiHouse15)
 
-Officetel16 = do_ReadTradeData(_item="officetel", _year=2016, _startMonth=1, _endMonth=12)
-print(Officetel16)
+MultiHouse16 = do_ReadContractData(_item="multi_housing", _year=2016, _startMonth=1, _endMonth=12)
+print(MultiHouse16)
 
-Officetel17 = do_ReadTradeData(_item="officetel", _year=2017, _startMonth=1,  _endMonth=12)
-print(Officetel17)
+MultiHouse17 = do_ReadContractData(_item="multi_housing", _year=2017, _startMonth=1,  _endMonth=12)
+print(MultiHouse17)
 
-Officetel18 = do_ReadTradeData(_item="officetel", _year=2018,  _startMonth=1, _endMonth=12)
-print(Officetel18)
+MultiHouse18 = do_ReadContractData(_item="multi_housing", _year=2018,  _startMonth=1, _endMonth=12)
+print(MultiHouse18)
 
-Officetel19 = do_ReadTradeData(_item="officetel", _year=2019,  _startMonth=1, _endMonth=12)
-print(Officetel19)
+MultiHouse19 = do_ReadContractData(_item="multi_housing", _year=2019,  _startMonth=1, _endMonth=12)
+print(MultiHouse19)
 
-Officetel20 = do_ReadTradeData(_item="officetel", _year=2020, _startMonth=1, _endMonth=12)
-print(Officetel20)
+MultiHouse20 = do_ReadContractData(_item="multi_housing", _year=2020, _startMonth=1, _endMonth=12)
+print(MultiHouse20)
 
 
 # %%
 # 주택 월 별 거래금액(막대그래프) (userspace)
-calc_trade_monthly_price(_data= Officetel15, _item= "officetel",_year=2015, _startMonth=1, _endMonth=12)
-calc_trade_monthly_price(_data= Officetel16, _item= "officetel", _year=2016, _startMonth=1, _endMonth=12)
-calc_trade_monthly_price(_data= Officetel17, _item= "officetel",_year=2017, _startMonth=1, _endMonth=12)
-calc_trade_monthly_price(_data= Officetel18, _item= "officetel", _year=2018, _startMonth=1, _endMonth=12)
-calc_trade_monthly_price(_data= Officetel19, _item= "officetel",_year=2019, _startMonth=1, _endMonth=12)
-calc_trade_monthly_price(_data= Officetel20, _item= "officetel",_year=2020, _startMonth=1, _endMonth=12)
+calc_contract_monthly_price(_data= MultiHouse15, _item= "multi_housing",_year=2015, _startMonth=1, _endMonth=12)
+calc_contract_monthly_price(_data= MultiHouse16, _item= "multi_housing", _year=2016, _startMonth=1, _endMonth=12)
+calc_contract_monthly_price(_data= MultiHouse17, _item= "multi_housing",_year=2017, _startMonth=1, _endMonth=12)
+calc_contract_monthly_price(_data= MultiHouse18, _item= "multi_housing", _year=2018, _startMonth=1, _endMonth=12)
+calc_contract_monthly_price(_data= MultiHouse19, _item= "multi_housing",_year=2019, _startMonth=1, _endMonth=12)
+calc_contract_monthly_price(_data= MultiHouse20, _item= "multi_housing",_year=2020, _startMonth=1, _endMonth=12)
 
 # %%
 # 주택 월 별 거래 증감률(선형 그래프) (userspace)
-calc_trade_monthly_increase(_data= Officetel15, _item= "officetel",_year=2015, _startMonth=1, _endMonth=12)
-calc_trade_monthly_increase(_data= Officetel16, _item= "officetel",_year=2016, _startMonth=1, _endMonth=12)
-calc_trade_monthly_increase(_data= Officetel17, _item= "officetel",_year=2017, _startMonth=1, _endMonth=12)
-calc_trade_monthly_increase(_data= Officetel18, _item= "officetel",_year=2018, _startMonth=1, _endMonth=12)
-calc_trade_monthly_increase(_data= Officetel19, _item= "officetel",_year=2019, _startMonth=1, _endMonth=12)
-calc_trade_monthly_increase(_data= Officetel20, _item= "officetel",_year=2020, _startMonth=1, _endMonth=12)
+calc_contract_monthly_increase(_data= MultiHouse15, _item= "multi_housing",_year=2015, _startMonth=1, _endMonth=12)
+calc_contract_monthly_increase(_data= MultiHouse16, _item= "multi_housing",_year=2016, _startMonth=1, _endMonth=12)
+calc_contract_monthly_increase(_data= MultiHouse17, _item= "multi_housing",_year=2017, _startMonth=1, _endMonth=12)
+calc_contract_monthly_increase(_data= MultiHouse18, _item= "multi_housing",_year=2018, _startMonth=1, _endMonth=12)
+calc_contract_monthly_increase(_data= MultiHouse19, _item= "multi_housing",_year=2019, _startMonth=1, _endMonth=12)
+calc_contract_monthly_increase(_data= MultiHouse20, _item= "multi_housing",_year=2020, _startMonth=1, _endMonth=12)
 # %%
 # 주택 연도 별 거래 증감률(선형 그래프) (userspace)
-calc_trade_yearly_increase(_item= "officetel", _startYear=2015, _endYear=2020)
+calc_contract_yearly_increase(_item= "multi_housing", _startYear=2015, _endYear=2020)
