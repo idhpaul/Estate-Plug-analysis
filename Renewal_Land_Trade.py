@@ -6,6 +6,7 @@ import datetime
 from re import A
 import sys
 import pandas as pd
+import numpy as np
 
 import matplotlib as mpl           
 import matplotlib.pyplot as plt
@@ -406,7 +407,105 @@ def calc_trade_monthly_price(_data, _item, _year, _startMonth, _endMonth):
         myCol = myDB[target_collection_name]
         x = myCol.insert_one({"year_month":target_year + target_month, "price":int(target_price)})
         print(x.inserted_id)
+def find_area_name(_areaCode):
     
+    area_name = ""
+
+    if(_areaCode == 11110):
+        area_name = "종로구"
+    elif(_areaCode == 11140):
+        area_name = "중구"
+    elif(_areaCode == 11170):
+        area_name = "용산구"
+    elif(_areaCode == 11200):
+        area_name = "성동구"
+    elif(_areaCode == 11215):
+        area_name = "광진구"
+    elif(_areaCode == 11230):
+        area_name = "동대문구"
+    elif(_areaCode == 11260):
+        area_name = "중랑구"
+    elif(_areaCode == 11290):
+        area_name = "성북구"
+    elif(_areaCode == 11305):
+        area_name = "강북구"
+    elif(_areaCode == 11320):
+        area_name = "도봉구"
+    elif(_areaCode == 11350):
+        area_name = "노원구"
+    elif(_areaCode == 11380):
+        area_name = "은평구"
+    elif(_areaCode == 11410):
+        area_name = "서대문구"
+    elif(_areaCode == 11440):
+        area_name = "마포구"
+    elif(_areaCode == 11470):
+        area_name = "양천구"
+    elif(_areaCode == 11500):
+        area_name = "강서구"
+    elif(_areaCode == 11530):
+        area_name = "구로구"
+    elif(_areaCode == 11545):
+        area_name = "금천구"
+    elif(_areaCode == 11560):
+        area_name = "영등포구"
+    elif(_areaCode == 11590):
+        area_name = "동작구"
+    elif(_areaCode == 11620):
+        area_name = "관악구"
+    elif(_areaCode == 11650):
+        area_name = "서초구"
+    elif(_areaCode == 11680):
+        area_name = "강남구"
+    elif(_areaCode == 11710):
+        area_name = "송파구"
+    elif(_areaCode == 11740):
+        area_name = "강동구"
+
+    return area_name
+
+def calc_trade_yearly_percentage(_item, _year):
+
+    target_collection_name = _item + "_trade_yearly_percentage"
+
+    read_target_trade_data = do_ReadTradeData(_item=_item, _year=_year, _startMonth=1, _endMonth=12)
+    temp = read_target_trade_data
+
+    temp['지역코드'] = pd.to_numeric(temp['지역코드'])
+    seoul_temp = temp[temp.columns][temp['지역코드']<=20000]
+
+    temp = seoul_temp.groupby('지역코드').count()
+
+    new_index = temp.index
+    new_column = temp['거래금액']
+    new_column.name = '지역별 거래 비율'
+
+    new_pd = new_column.to_frame()
+    new_pd
+
+    hole_count=seoul_temp['거래금액'].count()
+    hole_count
+
+    new_pd = new_pd * 100 / hole_count
+    new_pd
+
+    sort_data = new_pd.sort_values('지역별 거래 비율',ascending=False)
+
+    for i in range(1, 25+1):
+        print(i)
+        target_year = str(_year)
+        target_name = find_area_name(sort_data.iloc[i-1].name)
+        target_percent = np.round_(sort_data.iloc[i-1].values.astype(float),2)
+        target_percent = target_percent[0]
+        print(target_year, target_name)
+        print(target_percent)
+
+        myDB = Connect_MongoDB()
+        myCol = myDB[target_collection_name]
+        x = myCol.insert_one({"year":target_year, "area_cd":target_name, "percent":target_percent})
+        print(x.inserted_id)
+
+ 
 # %%
 # 연도 별 데이터 추합 (userspace)
 Land15 = do_ReadTradeData(_item="land", _year=2015, _startMonth=1, _endMonth=12)
@@ -451,3 +550,13 @@ calc_trade_monthly_increase(_data= Land20, _item= "land",_year=2020, _startMonth
 # %%
 # 주택 연도 별 거래 증감률(선형 그래프) (userspace)
 calc_trade_yearly_increase(_item= "land", _startYear=2015, _endYear=2020)
+
+#%%
+# 아파트 연도 별 거래 비중(원 그래프) (userspace)
+calc_trade_yearly_percentage(_item= "land", _year=2015)
+calc_trade_yearly_percentage(_item= "land", _year=2016)
+calc_trade_yearly_percentage(_item= "land", _year=2017)
+calc_trade_yearly_percentage(_item= "land", _year=2018)
+calc_trade_yearly_percentage(_item= "land", _year=2019)
+calc_trade_yearly_percentage(_item= "land", _year=2020)
+
